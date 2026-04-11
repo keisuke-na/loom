@@ -35,7 +35,23 @@ function renderNode(node: FigmaNode, indent: number, imageMap: Record<string, st
   }
 
   // container nodes (FRAME, RECTANGLE, INSTANCE, etc.)
-  const children = node.children ?? [];
+  const children = (node.children ?? []).filter(
+    (c) => !(c.type === "FRAME" && !c.children?.length && !c.absoluteBoundingBox)
+  );
+
+  // icon wrapper: frame without layoutMode containing only a VECTOR
+  if (!node.layoutMode && children.length === 1 && children[0].type === "VECTOR") {
+    const vector = children[0];
+    const src = imageMap[vector.id] ?? "";
+    const sizeStyles: Record<string, string> = {};
+    if (node.absoluteBoundingBox) {
+      sizeStyles["width"] = `${node.absoluteBoundingBox.width}px`;
+      sizeStyles["height"] = `${node.absoluteBoundingBox.height}px`;
+    }
+    const sizeAttr = formatStyleObject(sizeStyles);
+    return `${pad}<img src="${src}"${sizeAttr} alt="${vector.name}" />`;
+  }
+
   if (children.length === 0) {
     return `${pad}<${tag}${styleAttr} />`;
   }
