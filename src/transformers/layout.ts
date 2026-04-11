@@ -31,9 +31,15 @@ export function transformLayout(node: FigmaNode): CSSProperties {
   // sizing
   if (node.layoutSizingHorizontal === "FILL") css["flex"] = "1";
   if (node.layoutSizingHorizontal === "HUG") css["width"] = "fit-content";
+  if (node.layoutSizingHorizontal === "FIXED" && node.absoluteBoundingBox) {
+    css["width"] = `${node.absoluteBoundingBox.width}px`;
+  }
 
   if (node.layoutSizingVertical === "FILL") css["flex"] = "1";
   if (node.layoutSizingVertical === "HUG") css["height"] = "fit-content";
+  if (node.layoutSizingVertical === "FIXED" && node.absoluteBoundingBox) {
+    css["height"] = `${node.absoluteBoundingBox.height}px`;
+  }
 
   // alignment
   if (node.primaryAxisAlignItems) {

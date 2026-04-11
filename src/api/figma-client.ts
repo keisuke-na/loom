@@ -35,6 +35,7 @@ export interface FigmaNode {
   layoutSizingVertical?: "FILL" | "HUG" | "FIXED";
   primaryAxisAlignItems?: string;
   counterAxisAlignItems?: string;
+  absoluteBoundingBox?: { x: number; y: number; width: number; height: number };
   // visual
   fills?: FigmaFill[];
   strokes?: FigmaFill[];
