@@ -11,10 +11,11 @@ function toRgba(color: { r: number; g: number; b: number; a: number }): string {
 export function transformVisual(node: FigmaNode): CSSProperties {
   const css: CSSProperties = {};
 
-  // background-color
+  // fills: TEXT nodes use "color", others use "background-color"
   const fill = node.fills?.find((f) => f.type === "SOLID" && f.color);
   if (fill?.color) {
-    css["background-color"] = toRgba(fill.color);
+    const prop = node.type === "TEXT" ? "color" : "background-color";
+    css[prop] = toRgba(fill.color);
   }
 
   // border-radius
