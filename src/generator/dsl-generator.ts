@@ -1,0 +1,198 @@
+import type { FigmaNode } from "../api/figma-client.js";
+import { hasImageFill } from "../api/figma-client.js";
+import { collectStyles } from "../transformers/node.js";
+
+function parseRgba(value: string): string {
+  const match = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (!match) return value;
+  return `${match[1]},${match[2]},${match[3]}`;
+}
+
+function round(value: string): number {
+  return Math.round(parseFloat(value));
+}
+
+const DSL_MAP: Record<string, (value: string) => string> = {
+  "flex-direction": (v) => (v === "column" ? ".col" : ".row"),
+  "flex": () => ".fill",
+  "align-self": (v) => (v === "stretch" ? ".stretch" : ""),
+  "width": (v) => (v === "fit-content" ? ".hug" : `.w${round(v)}`),
+  "height": (v) => (v === "fit-content" ? "" : `.h${round(v)}`),
+  "gap": (v) => `.gap${round(v)}`,
+  "align-items": (v) => {
+    if (v === "center") return ".center";
+    if (v === "flex-end") return ".end";
+    return "";
+  },
+  "justify-content": (v) => {
+    if (v === "space-between") return ".between";
+    if (v === "center") return ".jcenter";
+    if (v === "flex-end") return ".jend";
+    return "";
+  },
+  "background-color": (v) => `.bg(${parseRgba(v)})`,
+  "border-radius": (v) => {
+    const parts = v.split(" ");
+    if (parts.length === 4) {
+      const values = parts.map((p) => round(p));
+      return `.r(${values.join(",")})`;
+    }
+    return `.r${round(v)}`;
+  },
+  "border": (v) => {
+    const match = v.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    return match ? `.border(${match[1]},${match[2]},${match[3]})` : "";
+  },
+  "font-family": (v) => `.font("${v}")`,
+  "font-size": (v) => `.s${round(v)}`,
+  "font-weight": (v) => {
+    if (v === "700") return ".bold";
+    if (v === "500") return ".medium";
+    return "";
+  },
+  "color": (v) => `.c(${parseRgba(v)})`,
+  "line-height": (v) => `.leading${round(v)}`,
+  "letter-spacing": (v) => {
+    const n = round(v);
+    return n !== 0 ? `.tracking${n}` : "";
+  },
+  "text-align": () => "",
+  "object-fit": (v) => (v === "cover" ? ".cover" : ""),
+};
+
+// Skip display:flex (implied by F tag) and individual paddings (handled separately)
+const SKIP_PROPS = new Set([
+  "display",
+  "padding-top",
+  "padding-right",
+  "padding-bottom",
+  "padding-left",
+]);
+
+function optimizePadding(styles: Record<string, string>): string {
+  const pt = parseFloat(styles["padding-top"] ?? "0");
+  const pr = parseFloat(styles["padding-right"] ?? "0");
+  const pb = parseFloat(styles["padding-bottom"] ?? "0");
+  const pl = parseFloat(styles["padding-left"] ?? "0");
+
+  if (pt === 0 && pr === 0 && pb === 0 && pl === 0) return "";
+
+  // all same
+  if (pt === pr && pr === pb && pb === pl) return `.p${pt}`;
+
+  let result = "";
+  // px (left + right same)
+  if (pl === pr && pl > 0) {
+    result += `.px${pl}`;
+  } else {
+    if (pl > 0) result += `.pl${pl}`;
+    if (pr > 0) result += `.pr${pr}`;
+  }
+  // py (top + bottom same)
+  if (pt === pb && pt > 0) {
+    result += `.py${pt}`;
+  } else {
+    if (pt > 0) result += `.pt${pt}`;
+    if (pb > 0) result += `.pb${pb}`;
+  }
+
+  return result;
+}
+
+function cssToModifiers(styles: Record<string, string>): string {
+  let mods = "";
+
+  // padding optimization
+  mods += optimizePadding(styles);
+
+  // other properties
+  for (const [prop, value] of Object.entries(styles)) {
+    if (SKIP_PROPS.has(prop)) continue;
+    const mapper = DSL_MAP[prop];
+    if (mapper) {
+      mods += mapper(value);
+    }
+  }
+
+  return mods;
+}
+
+function resolveTag(node: FigmaNode, children: FigmaNode[]): string {
+  if (node.type === "TEXT") return "T";
+  if (node.type === "VECTOR") return "I";
+  if (hasImageFill(node) && children.length === 0) return "I";
+  return "F";
+}
+
+function renderNode(
+  node: FigmaNode,
+  indent: number,
+  imageMap: Record<string, string>,
+  parentLayoutMode?: "HORIZONTAL" | "VERTICAL"
+): string {
+  const pad = "  ".repeat(indent);
+
+  // filter empty placeholder frames
+  const children = (node.children ?? []).filter(
+    (c) => !(c.type === "FRAME" && !c.children?.length && !c.absoluteBoundingBox)
+  );
+
+  // icon wrapper: frame without layoutMode containing only a VECTOR
+  if (!node.layoutMode && children.length === 1 && children[0].type === "VECTOR") {
+    const vector = children[0];
+    const src = imageMap[vector.id] ?? "";
+    const bounds = vector.absoluteRenderBounds ?? node.absoluteBoundingBox;
+    let mods = `.src("${src}")`;
+    if (bounds) {
+      mods += `.w${Math.round(bounds.width)}.h${Math.round(bounds.height)}`;
+    }
+    mods += `.alt("${vector.name}")`;
+    return `${pad}I${mods}`;
+  }
+
+  const tag = resolveTag(node, children);
+  const styles = collectStyles(node, parentLayoutMode);
+  let mods = cssToModifiers(styles);
+
+  // IMAGE fill node
+  if (tag === "I" && hasImageFill(node)) {
+    const src = imageMap[node.id] ?? "";
+    mods += `.src("${src}")`;
+    if (node.absoluteBoundingBox) {
+      mods += `.w${node.absoluteBoundingBox.width}.h${node.absoluteBoundingBox.height}`;
+    }
+    mods += `.cover.alt("${node.name}")`;
+    return `${pad}I${mods}`;
+  }
+
+  // VECTOR node
+  if (tag === "I" && node.type === "VECTOR") {
+    const src = imageMap[node.id] ?? "";
+    mods += `.src("${src}").alt("${node.name}")`;
+    return `${pad}I${mods}`;
+  }
+
+  // TEXT node
+  if (tag === "T") {
+    const text = node.characters ?? "";
+    return `${pad}T${mods} "${text}"`;
+  }
+
+  // F (container) node
+  if (children.length === 0) {
+    return `${pad}F${mods}`;
+  }
+
+  const childrenDsl = children
+    .map((child) => renderNode(child, indent + 1, imageMap, node.layoutMode))
+    .join("\n");
+
+  return `${pad}F${mods} >\n${childrenDsl}`;
+}
+
+export function generateDsl(
+  node: FigmaNode,
+  imageMap: Record<string, string> = {}
+): string {
+  return renderNode(node, 0, imageMap);
+}

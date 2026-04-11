@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, existsSync } from "fs";
 import type { FigmaNodesResponse } from "./api/figma-client.js";
 import { collectImageNodeIds, fetchImageUrls } from "./api/figma-client.js";
 import { generateReact } from "./generator/react-generator.js";
+import { generateDsl } from "./generator/dsl-generator.js";
 
 const args = process.argv.slice(2);
 const filePath = args.find((a) => !a.startsWith("--"));
@@ -13,6 +14,9 @@ const fileKey = args
 const imageCachePath = args
   .find((a) => a.startsWith("--image-cache="))
   ?.split("=")[1];
+const format = args
+  .find((a) => a.startsWith("--format="))
+  ?.split("=")[1] ?? "react";
 
 if (!filePath) {
   console.error("Usage: loom <input.json> [--file-key=FILE_KEY] [--image-cache=CACHE.json]");
@@ -47,7 +51,9 @@ async function main() {
     }
   }
 
-  const code = generateReact(document, imageMap);
+  const code = format === "dsl"
+    ? generateDsl(document, imageMap)
+    : generateReact(document, imageMap);
   console.log(code);
 }
 
