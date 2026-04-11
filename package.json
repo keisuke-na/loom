@@ -1,0 +1,17 @@
+{
+  "name": "loom",
+  "version": "0.0.1",
+  "description": "Figma to React code converter",
+  "main": "dist/index.js",
+  "bin": {
+    "loom": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  }
+}
