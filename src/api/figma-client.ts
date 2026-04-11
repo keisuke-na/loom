@@ -36,6 +36,7 @@ export interface FigmaNode {
   primaryAxisAlignItems?: string;
   counterAxisAlignItems?: string;
   absoluteBoundingBox?: { x: number; y: number; width: number; height: number };
+  absoluteRenderBounds?: { x: number; y: number; width: number; height: number } | null;
   // visual
   fills?: FigmaFill[];
   strokes?: FigmaFill[];

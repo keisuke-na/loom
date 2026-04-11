@@ -40,9 +40,10 @@ function renderNode(
     const vector = children[0];
     const src = imageMap[vector.id] ?? "";
     const sizeStyles: Record<string, string> = {};
-    if (node.absoluteBoundingBox) {
-      sizeStyles["width"] = `${node.absoluteBoundingBox.width}px`;
-      sizeStyles["height"] = `${node.absoluteBoundingBox.height}px`;
+    const bounds = vector.absoluteRenderBounds ?? node.absoluteBoundingBox;
+    if (bounds) {
+      sizeStyles["width"] = `${bounds.width}px`;
+      sizeStyles["height"] = `${bounds.height}px`;
     }
     const sizeAttr = formatStyleAttr(sizeStyles);
     return `${pad}<img src="${src}"${sizeAttr} alt="${vector.name}" />`;
