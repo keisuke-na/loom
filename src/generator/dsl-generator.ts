@@ -231,11 +231,39 @@ function extractVariables(dsl: string): { definitions: string; body: string } {
     .map((v) => `${v.name} = ${v.pattern}`)
     .join("\n");
 
-  // Replace patterns in body with spaced variables
+  // Replace color/font patterns in body
   let body = dsl;
   for (const v of variables) {
     body = body.replaceAll(v.pattern, ` ${v.name} `);
   }
+
+  // B: Extract layout modifier patterns (3+ occurrences)
+  const layoutPatterns = new Map<string, number>();
+  for (const line of body.split("\n")) {
+    // Match modifiers after F or T tag only (skip I to avoid src/alt matching)
+    const m = line.match(/^\s*[FT]((?:\.[a-z][a-zA-Z0-9(),-]*)+)/);
+    if (m) {
+      const mods = m[1];
+      layoutPatterns.set(mods, (layoutPatterns.get(mods) ?? 0) + 1);
+    }
+  }
+
+  const frequentLayouts = [...layoutPatterns.entries()]
+    .filter(([, count]) => count >= 3)
+    .sort((a, b) => b[1] - a[1]);
+
+  let layoutIndex = 1;
+  for (const [pattern] of frequentLayouts) {
+    const name = `$l${layoutIndex++}`;
+    variables.push({ name, pattern });
+    body = body.replaceAll(pattern, ` ${name} `);
+  }
+
+  // Rebuild definitions with layout variables added
+  const allDefinitions = variables
+    .map((v) => `${v.name} = ${v.pattern}`)
+    .join("\n");
+
   // Clean up: collapse multiple spaces but preserve leading indentation
   body = body
     .split("\n")
@@ -246,7 +274,7 @@ function extractVariables(dsl: string): { definitions: string; body: string } {
     })
     .join("\n");
 
-  return { definitions, body };
+  return { definitions: allDefinitions, body };
 }
 
 export function generateDsl(
