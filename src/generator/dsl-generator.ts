@@ -277,15 +277,44 @@ function extractVariables(dsl: string): { definitions: string; body: string } {
   return { definitions: allDefinitions, body };
 }
 
+function extractImageVariables(dsl: string): { definitions: string; body: string } {
+  const urlRegex = /\.src\("([^"]+)"\)/g;
+  const urls = new Map<string, string>();
+  let imgIndex = 1;
+  let match;
+
+  while ((match = urlRegex.exec(dsl)) !== null) {
+    const url = match[1];
+    if (!urls.has(url)) {
+      urls.set(url, `$img${imgIndex++}`);
+    }
+  }
+
+  if (urls.size === 0) {
+    return { definitions: "", body: dsl };
+  }
+
+  let body = dsl;
+  const definitions: string[] = [];
+  for (const [url, name] of urls) {
+    definitions.push(`${name} = "${url}"`);
+    body = body.replaceAll(`.src("${url}")`, `.src(${name})`);
+  }
+
+  return { definitions: definitions.join("\n"), body };
+}
+
 export function generateDsl(
   node: FigmaNode,
   imageMap: Record<string, string> = {}
 ): string {
   const raw = renderNode(node, 0, imageMap);
-  const { definitions, body } = extractVariables(raw);
+  const { definitions: imgDefs, body: imgBody } = extractImageVariables(raw);
+  const { definitions: styleDefs, body } = extractVariables(imgBody);
 
-  if (definitions) {
-    return `${definitions}\n\n${body}`;
+  const allDefs = [imgDefs, styleDefs].filter(Boolean).join("\n");
+  if (allDefs) {
+    return `${allDefs}\n\n${body}`;
   }
   return body;
 }
