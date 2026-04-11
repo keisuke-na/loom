@@ -17,6 +17,10 @@ export function resolveTag(node: FigmaNode): HtmlTag {
 }
 
 export function collectStyles(node: FigmaNode): CSSProperties {
+  if (node.type === "VECTOR") {
+    return {};
+  }
+
   return {
     ...transformLayout(node),
     ...transformVisual(node),
