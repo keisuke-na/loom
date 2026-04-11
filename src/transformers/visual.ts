@@ -19,7 +19,10 @@ export function transformVisual(node: FigmaNode): CSSProperties {
   }
 
   // border-radius
-  if (node.cornerRadius) {
+  if (node.rectangleCornerRadii) {
+    const [tl, tr, br, bl] = node.rectangleCornerRadii;
+    css["border-radius"] = `${tl}px ${tr}px ${br}px ${bl}px`;
+  } else if (node.cornerRadius) {
     css["border-radius"] = `${node.cornerRadius}px`;
   }
 

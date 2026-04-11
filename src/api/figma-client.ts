@@ -40,6 +40,7 @@ export interface FigmaNode {
   strokes?: FigmaFill[];
   strokeWeight?: number;
   cornerRadius?: number;
+  rectangleCornerRadii?: [number, number, number, number];
   effects?: FigmaEffect[];
   // text
   characters?: string;
