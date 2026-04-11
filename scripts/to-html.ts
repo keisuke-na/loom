@@ -1,10 +1,7 @@
 import { readFileSync } from "fs";
 import type { FigmaNodesResponse, FigmaNode } from "../src/api/figma-client.js";
+import { collectVectorNodeIds, fetchImageUrls } from "../src/api/figma-client.js";
 import { resolveTag, collectStyles } from "../src/transformers/node.js";
-
-function toCamelCase(prop: string): string {
-  return prop.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
-}
 
 function formatStyleAttr(styles: Record<string, string>): string {
   const entries = Object.entries(styles);
@@ -13,7 +10,7 @@ function formatStyleAttr(styles: Record<string, string>): string {
   return ` style="${css}"`;
 }
 
-function renderNode(node: FigmaNode, indent: number): string {
+function renderNode(node: FigmaNode, indent: number, imageMap: Record<string, string>): string {
   const pad = "  ".repeat(indent);
   const tag = resolveTag(node);
   const styles = collectStyles(node);
@@ -25,7 +22,8 @@ function renderNode(node: FigmaNode, indent: number): string {
   }
 
   if (node.type === "VECTOR") {
-    return `${pad}<${tag} src=""${styleAttr} alt="${node.name}" />`;
+    const src = imageMap[node.id] ?? "";
+    return `${pad}<${tag} src="${src}"${styleAttr} alt="${node.name}" />`;
   }
 
   const children = node.children ?? [];
@@ -34,15 +32,20 @@ function renderNode(node: FigmaNode, indent: number): string {
   }
 
   const childrenHtml = children
-    .map((child) => renderNode(child, indent + 1))
+    .map((child) => renderNode(child, indent + 1, imageMap))
     .join("\n");
 
   return `${pad}<${tag}${styleAttr}>\n${childrenHtml}\n${pad}</${tag}>`;
 }
 
-const filePath = process.argv[2];
+const args = process.argv.slice(2);
+const filePath = args.find((a) => !a.startsWith("--"));
+const fileKey = args
+  .find((a) => a.startsWith("--file-key="))
+  ?.split("=")[1];
+
 if (!filePath) {
-  console.error("Usage: npx tsx scripts/to-html.ts <input.json>");
+  console.error("Usage: npx tsx scripts/to-html.ts <input.json> [--file-key=FILE_KEY]");
   process.exit(1);
 }
 
@@ -54,9 +57,21 @@ if (!nodeKey) {
 }
 
 const document = json.nodes[nodeKey].document;
-const body = renderNode(document, 2);
 
-const html = `<!DOCTYPE html>
+async function main() {
+  let imageMap: Record<string, string> = {};
+
+  if (fileKey) {
+    const vectorIds = collectVectorNodeIds(document);
+    if (vectorIds.length > 0) {
+      console.error(`Fetching ${vectorIds.length} SVG images...`);
+      imageMap = await fetchImageUrls(fileKey, vectorIds);
+    }
+  }
+
+  const body = renderNode(document, 2, imageMap);
+
+  const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -72,4 +87,7 @@ ${body}
 </html>
 `;
 
-console.log(html);
+  console.log(html);
+}
+
+main();

@@ -102,3 +102,32 @@ export async function fetchImageUrl(
   const data = (await res.json()) as FigmaImagesResponse;
   return data.images[nodeId] ?? null;
 }
+
+export async function fetchImageUrls(
+  fileKey: string,
+  nodeIds: string[]
+): Promise<Record<string, string>> {
+  if (nodeIds.length === 0) return {};
+
+  const ids = nodeIds.map(encodeURIComponent).join(",");
+  const url = `${FIGMA_API_BASE}/images/${fileKey}?ids=${ids}&format=svg`;
+  const res = await fetch(url, { headers: headers() });
+
+  if (!res.ok) {
+    throw new Error(`Figma API error: ${res.status} ${res.statusText}`);
+  }
+
+  const data = (await res.json()) as FigmaImagesResponse;
+  return data.images;
+}
+
+export function collectVectorNodeIds(node: FigmaNode): string[] {
+  const ids: string[] = [];
+  if (node.type === "VECTOR") {
+    ids.push(node.id);
+  }
+  for (const child of node.children ?? []) {
+    ids.push(...collectVectorNodeIds(child));
+  }
+  return ids;
+}

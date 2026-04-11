@@ -16,7 +16,7 @@ function formatStyleObject(styles: Record<string, string>): string {
   return ` style={{ ${props} }}`;
 }
 
-function renderNode(node: FigmaNode, indent: number): string {
+function renderNode(node: FigmaNode, indent: number, imageMap: Record<string, string>): string {
   const pad = "  ".repeat(indent);
   const tag = resolveTag(node);
   const styles = collectStyles(node);
@@ -28,9 +28,10 @@ function renderNode(node: FigmaNode, indent: number): string {
     return `${pad}<${tag}${styleAttr}>\n${pad}  ${text}\n${pad}</${tag}>`;
   }
 
-  // VECTOR node (placeholder)
+  // VECTOR node
   if (node.type === "VECTOR") {
-    return `${pad}<${tag} src=""${styleAttr} alt="${node.name}" />`;
+    const src = imageMap[node.id] ?? "";
+    return `${pad}<${tag} src="${src}"${styleAttr} alt="${node.name}" />`;
   }
 
   // container nodes (FRAME, RECTANGLE, INSTANCE, etc.)
@@ -40,14 +41,14 @@ function renderNode(node: FigmaNode, indent: number): string {
   }
 
   const childrenCode = children
-    .map((child) => renderNode(child, indent + 1))
+    .map((child) => renderNode(child, indent + 1, imageMap))
     .join("\n");
 
   return `${pad}<${tag}${styleAttr}>\n${childrenCode}\n${pad}</${tag}>`;
 }
 
-export function generateReact(node: FigmaNode): string {
-  const jsx = renderNode(node, 2);
+export function generateReact(node: FigmaNode, imageMap: Record<string, string> = {}): string {
+  const jsx = renderNode(node, 2, imageMap);
 
   return `export default function Component() {
   return (
