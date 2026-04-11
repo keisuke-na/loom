@@ -16,13 +16,16 @@ export function resolveTag(node: FigmaNode): HtmlTag {
   }
 }
 
-export function collectStyles(node: FigmaNode): CSSProperties {
+export function collectStyles(
+  node: FigmaNode,
+  parentLayoutMode?: "HORIZONTAL" | "VERTICAL"
+): CSSProperties {
   if (node.type === "VECTOR") {
     return {};
   }
 
   return {
-    ...transformLayout(node),
+    ...transformLayout(node, parentLayoutMode),
     ...transformVisual(node),
     ...transformText(node),
   };

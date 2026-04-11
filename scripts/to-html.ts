@@ -10,10 +10,15 @@ function formatStyleAttr(styles: Record<string, string>): string {
   return ` style="${css}"`;
 }
 
-function renderNode(node: FigmaNode, indent: number, imageMap: Record<string, string>): string {
+function renderNode(
+  node: FigmaNode,
+  indent: number,
+  imageMap: Record<string, string>,
+  parentLayoutMode?: "HORIZONTAL" | "VERTICAL"
+): string {
   const pad = "  ".repeat(indent);
   const tag = resolveTag(node);
-  const styles = collectStyles(node);
+  const styles = collectStyles(node, parentLayoutMode);
   const styleAttr = formatStyleAttr(styles);
 
   if (node.type === "TEXT") {
@@ -48,7 +53,7 @@ function renderNode(node: FigmaNode, indent: number, imageMap: Record<string, st
   }
 
   const childrenHtml = children
-    .map((child) => renderNode(child, indent + 1, imageMap))
+    .map((child) => renderNode(child, indent + 1, imageMap, node.layoutMode))
     .join("\n");
 
   return `${pad}<${tag}${styleAttr}>\n${childrenHtml}\n${pad}</${tag}>`;

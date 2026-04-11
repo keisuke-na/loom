@@ -9,7 +9,10 @@ const ALIGN_MAP: Record<string, string> = {
   SPACE_BETWEEN: "space-between",
 };
 
-export function transformLayout(node: FigmaNode): CSSProperties {
+export function transformLayout(
+  node: FigmaNode,
+  parentLayoutMode?: "HORIZONTAL" | "VERTICAL"
+): CSSProperties {
   const css: CSSProperties = {};
 
   if (!node.layoutMode) {
@@ -28,14 +31,29 @@ export function transformLayout(node: FigmaNode): CSSProperties {
   // gap
   if (node.itemSpacing) css["gap"] = `${node.itemSpacing}px`;
 
-  // sizing
-  if (node.layoutSizingHorizontal === "FILL") css["flex"] = "1";
+  // sizing — main axis FILL → flex: 1, cross axis FILL → align-self: stretch
+  const isMainAxisH = parentLayoutMode === "HORIZONTAL";
+  const isMainAxisV = parentLayoutMode === "VERTICAL";
+
+  if (node.layoutSizingHorizontal === "FILL") {
+    if (isMainAxisH) {
+      css["flex"] = "1";
+    } else if (isMainAxisV) {
+      css["align-self"] = "stretch";
+    }
+  }
   if (node.layoutSizingHorizontal === "HUG") css["width"] = "fit-content";
   if (node.layoutSizingHorizontal === "FIXED" && node.absoluteBoundingBox) {
     css["width"] = `${node.absoluteBoundingBox.width}px`;
   }
 
-  if (node.layoutSizingVertical === "FILL") css["flex"] = "1";
+  if (node.layoutSizingVertical === "FILL") {
+    if (isMainAxisV) {
+      css["flex"] = "1";
+    } else if (isMainAxisH) {
+      css["align-self"] = "stretch";
+    }
+  }
   if (node.layoutSizingVertical === "HUG") css["height"] = "fit-content";
   if (node.layoutSizingVertical === "FIXED" && node.absoluteBoundingBox) {
     css["height"] = `${node.absoluteBoundingBox.height}px`;
