@@ -1,4 +1,5 @@
 import type { FigmaNode } from "../api/figma-client.js";
+import { hasImageFill } from "../api/figma-client.js";
 import { resolveTag, collectStyles } from "../transformers/node.js";
 
 function toCamelCase(prop: string): string {
@@ -56,6 +57,19 @@ function renderNode(
     }
     const sizeAttr = formatStyleObject(sizeStyles);
     return `${pad}<img src="${src}"${sizeAttr} alt="${vector.name}" />`;
+  }
+
+  // IMAGE fill node (e.g. thumbnails)
+  if (hasImageFill(node) && children.length === 0) {
+    const src = imageMap[node.id] ?? "";
+    const imgStyles = { ...styles };
+    if (node.absoluteBoundingBox) {
+      imgStyles["width"] = `${node.absoluteBoundingBox.width}px`;
+      imgStyles["height"] = `${node.absoluteBoundingBox.height}px`;
+    }
+    imgStyles["object-fit"] = "cover";
+    const imgStyleAttr = formatStyleObject(imgStyles);
+    return `${pad}<img src="${src}"${imgStyleAttr} alt="${node.name}" />`;
   }
 
   if (children.length === 0) {

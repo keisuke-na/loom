@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from "fs";
 import type { FigmaNodesResponse } from "../src/api/figma-client.js";
-import { collectVectorNodeIds, fetchImageUrls } from "../src/api/figma-client.js";
+import { collectImageNodeIds, fetchImageUrls } from "../src/api/figma-client.js";
 import { generateReact } from "../src/generator/react-generator.js";
 
 const args = process.argv.slice(2);
@@ -33,10 +33,10 @@ async function main() {
     imageMap = JSON.parse(readFileSync(imageCachePath, "utf-8"));
     console.error(`Loaded ${Object.keys(imageMap).length} images from cache`);
   } else if (fileKey) {
-    const vectorIds = collectVectorNodeIds(document);
-    if (vectorIds.length > 0) {
-      console.error(`Fetching ${vectorIds.length} SVG images...`);
-      imageMap = await fetchImageUrls(fileKey, vectorIds);
+    const imageIds = collectImageNodeIds(document);
+    if (imageIds.length > 0) {
+      console.error(`Fetching ${imageIds.length} images...`);
+      imageMap = await fetchImageUrls(fileKey, imageIds);
     }
   }
 

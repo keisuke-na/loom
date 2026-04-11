@@ -124,13 +124,19 @@ export async function fetchImageUrls(
   return data.images;
 }
 
-export function collectVectorNodeIds(node: FigmaNode): string[] {
+function hasImageFill(node: FigmaNode): boolean {
+  return node.fills?.some((f) => f.type === "IMAGE") ?? false;
+}
+
+export function collectImageNodeIds(node: FigmaNode): string[] {
   const ids: string[] = [];
-  if (node.type === "VECTOR") {
+  if (node.type === "VECTOR" || hasImageFill(node)) {
     ids.push(node.id);
   }
   for (const child of node.children ?? []) {
-    ids.push(...collectVectorNodeIds(child));
+    ids.push(...collectImageNodeIds(child));
   }
   return ids;
 }
+
+export { hasImageFill };
