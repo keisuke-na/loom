@@ -190,9 +190,74 @@ function renderNode(
   return `${pad}F${mods} >\n${childrenDsl}`;
 }
 
+function extractVariables(dsl: string): { definitions: string; body: string } {
+  // Collect all color and font patterns with their frequencies
+  const patterns = new Map<string, number>();
+
+  // .bg(R,G,B), .c(R,G,B), .font("name")
+  const regex = /\.(bg|c|font)\([^)]+\)/g;
+  let match;
+  while ((match = regex.exec(dsl)) !== null) {
+    const pattern = match[0];
+    patterns.set(pattern, (patterns.get(pattern) ?? 0) + 1);
+  }
+
+  // Filter to patterns appearing 2+ times, sort by frequency desc
+  const frequent = [...patterns.entries()]
+    .filter(([, count]) => count >= 2)
+    .sort((a, b) => b[1] - a[1]);
+
+  if (frequent.length === 0) {
+    return { definitions: "", body: dsl };
+  }
+
+  // Assign variable names
+  let colorIndex = 1;
+  let fontIndex = 1;
+  const variables: { name: string; pattern: string }[] = [];
+
+  for (const [pattern] of frequent) {
+    let name: string;
+    if (pattern.startsWith(".font")) {
+      name = `$font${fontIndex++}`;
+    } else {
+      name = `$c${colorIndex++}`;
+    }
+    variables.push({ name, pattern });
+  }
+
+  // Build definitions
+  const definitions = variables
+    .map((v) => `${v.name} = ${v.pattern}`)
+    .join("\n");
+
+  // Replace patterns in body with spaced variables
+  let body = dsl;
+  for (const v of variables) {
+    body = body.replaceAll(v.pattern, ` ${v.name} `);
+  }
+  // Clean up: collapse multiple spaces but preserve leading indentation
+  body = body
+    .split("\n")
+    .map((line) => {
+      const indent = line.match(/^( *)/)?.[0] ?? "";
+      const content = line.slice(indent.length).replace(/ {2,}/g, " ").trim();
+      return indent + content;
+    })
+    .join("\n");
+
+  return { definitions, body };
+}
+
 export function generateDsl(
   node: FigmaNode,
   imageMap: Record<string, string> = {}
 ): string {
-  return renderNode(node, 0, imageMap);
+  const raw = renderNode(node, 0, imageMap);
+  const { definitions, body } = extractVariables(raw);
+
+  if (definitions) {
+    return `${definitions}\n\n${body}`;
+  }
+  return body;
 }
