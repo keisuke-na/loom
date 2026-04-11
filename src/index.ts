@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync, existsSync } from "fs";
 import type { FigmaNodesResponse } from "./api/figma-client.js";
 import { collectVectorNodeIds, fetchImageUrls } from "./api/figma-client.js";
 import { generateReact } from "./generator/react-generator.js";
@@ -10,9 +10,12 @@ const filePath = args.find((a) => !a.startsWith("--"));
 const fileKey = args
   .find((a) => a.startsWith("--file-key="))
   ?.split("=")[1];
+const imageCachePath = args
+  .find((a) => a.startsWith("--image-cache="))
+  ?.split("=")[1];
 
 if (!filePath) {
-  console.error("Usage: loom <input.json> [--file-key=FILE_KEY]");
+  console.error("Usage: loom <input.json> [--file-key=FILE_KEY] [--image-cache=CACHE.json]");
   process.exit(1);
 }
 
@@ -29,11 +32,18 @@ const document = json.nodes[nodeKey].document;
 async function main() {
   let imageMap: Record<string, string> = {};
 
-  if (fileKey) {
+  if (imageCachePath && existsSync(imageCachePath)) {
+    imageMap = JSON.parse(readFileSync(imageCachePath, "utf-8"));
+    console.error(`Loaded ${Object.keys(imageMap).length} images from cache`);
+  } else if (fileKey) {
     const vectorIds = collectVectorNodeIds(document);
     if (vectorIds.length > 0) {
       console.error(`Fetching ${vectorIds.length} SVG images...`);
       imageMap = await fetchImageUrls(fileKey, vectorIds);
+      if (imageCachePath) {
+        writeFileSync(imageCachePath, JSON.stringify(imageMap, null, 2));
+        console.error(`Saved image cache to ${imageCachePath}`);
+      }
     }
   }
 
