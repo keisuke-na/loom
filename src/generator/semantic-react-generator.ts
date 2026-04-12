@@ -319,12 +319,17 @@ export function generateSemanticReact(
   nodes: (DslNode | RepeatBlock)[],
   vars: Record<string, string>
 ): string {
-  // Collect all repeat blocks to generate component definitions
+  // Collect all repeat blocks to generate component definitions (deduplicate by name)
   const components: string[] = [];
+  const componentNames = new Set<string>();
   function findRepeats(items: (DslNode | RepeatBlock)[]) {
     for (const item of items) {
       if ("kind" in item && item.kind === "repeat") {
-        components.push(renderComponentDef(item.template, vars));
+        const name = item.template.as ?? "Item";
+        if (!componentNames.has(name)) {
+          componentNames.add(name);
+          components.push(renderComponentDef(item.template, vars));
+        }
       }
       if ("children" in item) {
         findRepeats(item.children);
