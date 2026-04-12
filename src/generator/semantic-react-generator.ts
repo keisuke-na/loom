@@ -369,7 +369,7 @@ export function generateSemanticReact(
     .map((node) => renderChild(node, 2, vars))
     .join("\n");
 
-  const parts: string[] = [];
+  const parts: string[] = ['import React from "react";'];
 
   // Component definitions
   if (components.length > 0) {
