@@ -177,8 +177,24 @@ function buildTree(lines: ParsedLine[], startIdx: number, parentIndent: number):
   return { nodes, endIdx: i };
 }
 
+const VOID_ELEMENTS = new Set(["input", "img", "br", "hr", "meta", "link"]);
+
+export function sanitizeSemanticDsl(input: string): string {
+  return input
+    .split("\n")
+    .map((line) => {
+      const tagMatch = line.match(/\.tag\("([^"]*)"\)/);
+      if (tagMatch && VOID_ELEMENTS.has(tagMatch[1]) && line.trimEnd().endsWith(">")) {
+        return line.replace(tagMatch[0], "");
+      }
+      return line;
+    })
+    .join("\n");
+}
+
 export function parseDsl(input: string): (DslNode | RepeatBlock)[] {
-  const rawLines = input.split("\n").filter((l) => l.trim() !== "");
+  const sanitized = sanitizeSemanticDsl(input);
+  const rawLines = sanitized.split("\n").filter((l) => l.trim() !== "");
   const lines: ParsedLine[] = rawLines.map((raw) => ({
     indent: raw.match(/^( *)/)?.[0].length ?? 0,
     raw,

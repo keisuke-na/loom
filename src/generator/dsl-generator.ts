@@ -264,6 +264,10 @@ function extractVariables(dsl: string): { definitions: string; body: string } {
   return { definitions: allDefinitions, body };
 }
 
+function zeroPad(n: number): string {
+  return n.toString().padStart(2, "0");
+}
+
 function extractImageVariables(dsl: string): { definitions: string; body: string } {
   const urlRegex = /\.src\("([^"]+)"\)/g;
   const urls = new Map<string, string>();
@@ -273,7 +277,7 @@ function extractImageVariables(dsl: string): { definitions: string; body: string
   while ((match = urlRegex.exec(dsl)) !== null) {
     const url = match[1];
     if (!urls.has(url)) {
-      urls.set(url, `$img${imgIndex++}`);
+      urls.set(url, `$img${zeroPad(imgIndex++)}`);
     }
   }
 
