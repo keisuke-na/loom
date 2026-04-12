@@ -17,10 +17,10 @@
 - `.h{N}` = `height: Npx`
 
 ## Spacing
-- `.p{N}` = `padding: Npx` (all sides)
-- `.px{N}` = `padding-left: Npx; padding-right: Npx`
-- `.py{N}` = `padding-top: Npx; padding-bottom: Npx`
-- `.pt{N}`, `.pr{N}`, `.pb{N}`, `.pl{N}` = individual padding
+- `.pt{N}` = `padding-top: Npx`
+- `.pr{N}` = `padding-right: Npx`
+- `.pb{N}` = `padding-bottom: Npx`
+- `.pl{N}` = `padding-left: Npx`
 - `.gap{N}` = `gap: Npx`
 
 ## Alignment

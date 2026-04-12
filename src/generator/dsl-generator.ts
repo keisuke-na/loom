@@ -77,24 +77,11 @@ function optimizePadding(styles: Record<string, string>): string {
 
   if (pt === 0 && pr === 0 && pb === 0 && pl === 0) return "";
 
-  // all same
-  if (pt === pr && pr === pb && pb === pl) return `.p${pt}`;
-
   let result = "";
-  // px (left + right same)
-  if (pl === pr && pl > 0) {
-    result += `.px${pl}`;
-  } else {
-    if (pl > 0) result += `.pl${pl}`;
-    if (pr > 0) result += `.pr${pr}`;
-  }
-  // py (top + bottom same)
-  if (pt === pb && pt > 0) {
-    result += `.py${pt}`;
-  } else {
-    if (pt > 0) result += `.pt${pt}`;
-    if (pb > 0) result += `.pb${pb}`;
-  }
+  if (pt > 0) result += `.pt${pt}`;
+  if (pr > 0) result += `.pr${pr}`;
+  if (pb > 0) result += `.pb${pb}`;
+  if (pl > 0) result += `.pl${pl}`;
 
   return result;
 }
