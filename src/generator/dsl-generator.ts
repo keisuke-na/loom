@@ -293,11 +293,16 @@ function extractImageVariables(dsl: string): { definitions: string; body: string
 
 export function generateDsl(
   node: FigmaNode,
-  imageMap: Record<string, string> = {}
+  imageMap: Record<string, string> = {},
+  bodyOnly: boolean = false
 ): string {
   const raw = renderNode(node, 0, imageMap);
   const { definitions: imgDefs, body: imgBody } = extractImageVariables(raw);
   const { definitions: styleDefs, body } = extractVariables(imgBody);
+
+  if (bodyOnly) {
+    return body;
+  }
 
   const allDefs = [imgDefs, styleDefs].filter(Boolean).join("\n");
   if (allDefs) {

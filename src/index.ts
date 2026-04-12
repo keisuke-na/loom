@@ -17,6 +17,7 @@ const imageCachePath = args
 const format = args
   .find((a) => a.startsWith("--format="))
   ?.split("=")[1] ?? "react";
+const bodyOnly = args.includes("--body-only");
 
 if (!filePath) {
   console.error("Usage: loom <input.json> [--file-key=FILE_KEY] [--image-cache=CACHE.json]");
@@ -52,7 +53,7 @@ async function main() {
   }
 
   const code = format === "dsl"
-    ? generateDsl(document, imageMap)
+    ? generateDsl(document, imageMap, bodyOnly)
     : generateReact(document, imageMap);
   console.log(code);
 }
