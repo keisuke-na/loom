@@ -1,4 +1,4 @@
-# Loom DSL Specification v0.2
+# Loom DSL Specification v0.3
 
 ## Tags
 - `F` = Flex container (`<div>` with `display: flex`)
@@ -57,6 +57,36 @@
 ## Style Variables
 - `$name = ...` defines a reusable style
 - Reference with `$name`
+
+## Semantic Annotations
+
+### Component Naming
+- `.as("Name")` = assigns a component name to the element
+- Example: `F.row.stretch.as("SearchBar") >`
+
+### Semantic HTML Tag
+- `.tag("tagname")` = specifies the HTML tag to use instead of `<div>` or `<span>`
+- Example: `F.row.as("BottomNav").tag("nav") >`
+
+### Repeating Patterns
+- `@repeat("arrayName", N)` = marks the start of a repeating pattern (N = number of items)
+- `@prop("name")` = marks a variable part within the template
+- `@data` = separates the template from the actual data
+- `@end` = marks the end of a repeating pattern
+
+Example:
+```
+@repeat("episodes", 3)
+F.as("EpisodeRow") >
+  I.src(@prop("image")).w56.h56
+  T @prop("title")
+  T @prop("subtitle")
+@data
+  { image: $img6, title: "The Daily Grind", subtitle: "Episode 12: The Future of Work" }
+  { image: $img7, title: "Tech Talk Today", subtitle: "Episode 5: AI in Healthcare" }
+  { image: $img8, title: "Mindful Moments", subtitle: "Episode 20: Stress Management" }
+@end
+```
 
 ## Conversion Rules
 - `RULE: Every F tag MUST include display:flex. No exceptions.`
