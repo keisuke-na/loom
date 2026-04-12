@@ -155,9 +155,16 @@ function formatStyle(css: CSSProperties): string {
 function renderNode(
   node: DslNode,
   indent: number,
-  vars: Record<string, string>
+  vars: Record<string, string>,
+  componentNames: Set<string>
 ): string {
   const pad = "  ".repeat(indent);
+
+  // If this F node is a registered component, render as component reference
+  if (node.tag === "F" && node.as && componentNames.has(node.as)) {
+    return `${pad}<${node.as} />`;
+  }
+
   const { css, src, alt } = resolveModifiers(node.modifiers, vars);
 
   // F nodes always have display: flex
@@ -190,7 +197,7 @@ function renderNode(
   }
 
   const childrenCode = node.children
-    .map((child) => renderChild(child, indent + 1, vars))
+    .map((child) => renderChild(child, indent + 1, vars, componentNames))
     .join("\n");
 
   return `${pad}<${htmlTag}${styleAttr}>\n${childrenCode}\n${pad}</${htmlTag}>`;
@@ -306,7 +313,8 @@ function renderNodeWithProps(
 function renderChild(
   child: DslNode | RepeatBlock,
   indent: number,
-  vars: Record<string, string>
+  vars: Record<string, string>,
+  componentNames: Set<string>
 ): string {
   if ("kind" in child && child.kind === "repeat") {
     // For repeat blocks, render the map() call inline
@@ -315,22 +323,64 @@ function renderChild(
     const dataArrayName = child.arrayName;
     return `${pad}{${dataArrayName}.map((item, index) => (\n${pad}  <${componentName} key={index} {...item} />\n${pad}))}`;
   }
-  return renderNode(child as DslNode, indent, vars);
+  return renderNode(child as DslNode, indent, vars, componentNames);
+}
+
+function renderStaticComponentDef(
+  node: DslNode,
+  vars: Record<string, string>,
+  componentNames: Set<string>
+): string {
+  const name = node.as ?? "Component";
+  const { css } = resolveModifiers(node.modifiers, vars);
+  css["display"] = "flex";
+  const htmlTag = node.htmlTag ?? "div";
+  const styleAttr = formatStyle(css);
+
+  const childrenCode = node.children
+    .map((child) => renderChild(child, 2, vars, componentNames))
+    .join("\n");
+
+  if (node.children.length === 0) {
+    return `function ${name}() {\n  return (\n    <${htmlTag}${styleAttr} />\n  );\n}`;
+  }
+
+  return `function ${name}() {\n  return (\n    <${htmlTag}${styleAttr}>\n${childrenCode}\n    </${htmlTag}>\n  );\n}`;
 }
 
 export function generateSemanticReact(
   nodes: (DslNode | RepeatBlock)[],
   vars: Record<string, string>
 ): string {
-  // Collect all repeat blocks to generate component definitions (deduplicate by name)
-  const components: string[] = [];
+  // Collect all component names first (repeat templates + .as() F nodes)
   const componentNames = new Set<string>();
-  function findRepeats(items: (DslNode | RepeatBlock)[]) {
+  const components: string[] = [];
+
+  // Pass 1: Collect all .as() F nodes and repeat templates
+  function collectComponentNames(items: (DslNode | RepeatBlock)[]) {
     for (const item of items) {
       if ("kind" in item && item.kind === "repeat") {
         const name = item.template.as ?? "Item";
-        if (!componentNames.has(name)) {
-          componentNames.add(name);
+        componentNames.add(name);
+        // Don't recurse into repeat template for .as() collection
+      } else if ("tag" in item && item.tag === "F" && item.as) {
+        componentNames.add(item.as);
+        collectComponentNames(item.children);
+      } else if ("children" in item) {
+        collectComponentNames(item.children);
+      }
+    }
+  }
+  collectComponentNames(nodes);
+
+  // Pass 2: Generate repeat template component definitions
+  function findRepeats(items: (DslNode | RepeatBlock)[]) {
+    const seen = new Set<string>();
+    for (const item of items) {
+      if ("kind" in item && item.kind === "repeat") {
+        const name = item.template.as ?? "Item";
+        if (!seen.has(name)) {
+          seen.add(name);
           components.push(renderComponentDef(item.template, vars));
         }
       }
@@ -340,6 +390,22 @@ export function generateSemanticReact(
     }
   }
   findRepeats(nodes);
+
+  // Pass 3: Generate static .as() component definitions
+  function findStaticComponents(items: (DslNode | RepeatBlock)[]) {
+    for (const item of items) {
+      if ("tag" in item && item.tag === "F" && item.as) {
+        // Skip if already defined as repeat template
+        if (!components.some((c) => c.startsWith(`function ${item.as}(`))) {
+          components.push(renderStaticComponentDef(item, vars, componentNames));
+        }
+        findStaticComponents(item.children);
+      } else if ("children" in item) {
+        findStaticComponents(item.children);
+      }
+    }
+  }
+  findStaticComponents(nodes);
 
   // Generate data arrays
   const dataArrays: string[] = [];
@@ -369,7 +435,7 @@ export function generateSemanticReact(
 
   // Generate main component
   const mainBody = nodes
-    .map((node) => renderChild(node, 2, vars))
+    .map((node) => renderChild(node, 2, vars, componentNames))
     .join("\n");
 
   const parts: string[] = ['import React from "react";'];
