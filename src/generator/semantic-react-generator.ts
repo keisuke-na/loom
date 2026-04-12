@@ -79,8 +79,8 @@ function modifierToCSS(mod: string): CSSProperties {
 
 function tokenizeModifiers(modStr: string): string[] {
   const tokens: string[] = [];
-  // Match: .word, .word(args), $variable
-  const regex = /(\.[a-zA-Z]+(?:\([^)]*\))?|\.[a-zA-Z]+\d*|\$\w+)/g;
+  // Match: .word123 (with digits), .word(args), .word, $variable
+  const regex = /(\.[a-zA-Z]+\d+|\.[a-zA-Z]+\([^)]*\)|\.[a-zA-Z]+|\$\w+)/g;
   let match;
   while ((match = regex.exec(modStr)) !== null) {
     tokens.push(match[1]);
