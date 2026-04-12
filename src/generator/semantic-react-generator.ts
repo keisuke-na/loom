@@ -178,6 +178,9 @@ function renderNode(
   // Text node
   if (node.tag === "T") {
     const text = node.text ?? "";
+    if (htmlTag === "input") {
+      return `${pad}<${htmlTag}${styleAttr} placeholder="${text}" />`;
+    }
     return `${pad}<${htmlTag}${styleAttr}>${text}</${htmlTag}>`;
   }
 
