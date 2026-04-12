@@ -17,12 +17,18 @@ Your task is to add semantic annotations to the DSL. Do NOT change any styles or
 - Common tags: `header`, `nav`, `main`, `section`, `article`, `footer`, `button`
 - Only add `.tag()` when a semantic tag is clearly appropriate
 
+### 3. Mark repeating patterns with `.repeat(N)`
+- When N consecutive siblings have the same structure (same nesting, same types), add `.repeat(N)` to the **first** sibling only
+- Do NOT modify the remaining siblings — leave them exactly as-is
+- N = total count including the first element
+- Example: 3 cards with the same structure → add `.repeat(3)` to the first card
+
 ## Rules
 
 - Do NOT modify any styles, modifiers, or structure
 - Do NOT remove or add elements
 - Variable references ($c1, $font1, $img01, $l1, etc.) are defined externally — treat them as opaque tokens and do NOT modify them
-- ONLY add `.as()` and `.tag()`
+- ONLY add `.as()`, `.tag()`, and `.repeat()`
 - Keep all indentation and nesting exactly as-is
 - Output the complete DSL with annotations added
 

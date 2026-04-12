@@ -69,23 +69,26 @@
 - Example: `F.row.as("BottomNav").tag("nav") >`
 
 ### Repeating Patterns
-- `@repeat("arrayName", N)` = marks the start of a repeating pattern (N = number of items)
-- `@prop("name")` = marks a variable part within the template
-- `@data` = separates the template from the actual data
-- `@end` = marks the end of a repeating pattern
+- `.repeat(N)` = marks the first element of N consecutive siblings with the same structure
+- Attach to the first sibling only; the following N-1 siblings remain unchanged
 
 Example:
 ```
-@repeat("episodes", 3)
-F.as("EpisodeRow") >
-  I.src(@prop("image")).w56.h56
-  T @prop("title")
-  T @prop("subtitle")
-@data
-  { image: $img6, title: "The Daily Grind", subtitle: "Episode 12: The Future of Work" }
-  { image: $img7, title: "Tech Talk Today", subtitle: "Episode 5: AI in Healthcare" }
-  { image: $img8, title: "Mindful Moments", subtitle: "Episode 20: Stress Management" }
-@end
+F $l5 .repeat(3) >
+  I.r12.src($img03).w240.h240.cover.alt("Depth 5, Frame 0")
+  F $l1 >
+    T $c1 $font1 .s16.medium.leading24 "The Daily Grind"
+    T $c2 $font1 .s14.leading21 "Daily news and insights"
+F $l5 >
+  I.r12.src($img04).w240.h240.cover.alt("Depth 5, Frame 0")
+  F $l1 >
+    T $c1 $font1 .s16.medium.leading24 "Tech Talk Today"
+    T $c2 $font1 .s14.leading21 "Latest tech trends"
+F $l5 >
+  I.r12.src($img05).w240.h240.cover.alt("Depth 5, Frame 0")
+  F $l1 >
+    T $c1 $font1 .s16.medium.leading24 "Mindful Moments"
+    T $c2 $font1 .s14.leading21 "Meditation and wellness"
 ```
 
 ## Conversion Rules
