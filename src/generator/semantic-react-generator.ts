@@ -1,4 +1,4 @@
-import type { DslNode, RepeatBlock } from "../parser/dsl-parser.js";
+import type { DslNode } from "../parser/dsl-parser.js";
 
 type CSSProperties = Record<string, string>;
 
@@ -203,127 +203,13 @@ function renderNode(
   return `${pad}<${htmlTag}${styleAttr}>\n${childrenCode}\n${pad}</${htmlTag}>`;
 }
 
-function renderRepeat(
-  block: RepeatBlock,
-  indent: number,
-  vars: Record<string, string>
-): string {
-  const pad = "  ".repeat(indent);
-  const componentName = block.template.as ?? "Item";
-
-  // Generate the component
-  const componentCode = renderComponentDef(block.template, vars);
-
-  // Generate the map call
-  const dataArrayName = block.arrayName;
-  const mapCode = `${pad}{${dataArrayName}.map((item, index) => (\n${pad}  <${componentName} key={index} {...item} />\n${pad}))}`;
-
-  return { componentCode, mapCode } as unknown as string;
-}
-
-function renderComponentDef(
-  node: DslNode,
-  vars: Record<string, string>
-): string {
-  // Build props interface from the template
-  const propNames = collectProps(node);
-  const propsParam = propNames.length > 0
-    ? `{ ${propNames.join(", ")} }: { ${propNames.map((p) => `${p}: string`).join("; ")} }`
-    : "";
-
-  const body = renderNodeWithProps(node, 1, vars);
-
-  const name = node.as ?? "Component";
-  return `function ${name}(${propsParam}) {\n  return (\n${body}\n  );\n}`;
-}
-
-function collectProps(node: DslNode): string[] {
-  const props: string[] = [];
-  const propRegex = /@prop\("([^"]*)"\)/g;
-
-  function walk(n: DslNode) {
-    let match;
-    while ((match = propRegex.exec(n.modifiers)) !== null) {
-      if (!props.includes(match[1])) props.push(match[1]);
-    }
-    if (n.text && n.text.includes("@prop")) {
-      const textMatch = n.text.match(/@prop\("([^"]*)"\)/);
-      if (textMatch && !props.includes(textMatch[1])) props.push(textMatch[1]);
-    }
-    for (const child of n.children) {
-      if ("tag" in child) walk(child);
-    }
-  }
-  walk(node);
-  return props;
-}
-
-function renderNodeWithProps(
-  node: DslNode,
-  indent: number,
-  vars: Record<string, string>
-): string {
-  const pad = "  ".repeat(indent);
-
-  // Replace @prop references in modifiers
-  let modifiers = node.modifiers.replace(/@prop\("(\w+)"\)/g, (_, name) => `\${${name}}`);
-  const { css, src, alt } = resolveModifiers(modifiers, vars);
-
-  if (node.tag === "F") {
-    css["display"] = "flex";
-  }
-
-  const htmlTag = node.htmlTag ?? (node.tag === "T" ? "span" : node.tag === "I" ? "img" : "div");
-  const styleAttr = formatStyle(css);
-
-  // Image node with props
-  if (node.tag === "I") {
-    // Check if src contains a prop reference
-    const srcMatch = node.modifiers.match(/\.src\(@prop\("(\w+)"\)\)/);
-    const altMatch = node.modifiers.match(/\.alt\(@prop\("(\w+)"\)\)/);
-    const srcAttr = srcMatch ? ` src={${srcMatch[1]}}` : (src ? ` src="${src}"` : "");
-    const altAttr = altMatch ? ` alt={${altMatch[1]}}` : (alt ? ` alt="${alt}"` : "");
-    return `${pad}<${htmlTag}${srcAttr}${styleAttr}${altAttr} />`;
-  }
-
-  // Text node with props
-  if (node.tag === "T") {
-    const propMatch = node.text?.match(/@prop\("(\w+)"\)/);
-    if (propMatch) {
-      return `${pad}<${htmlTag}${styleAttr}>{${propMatch[1]}}</${htmlTag}>`;
-    }
-    return `${pad}<${htmlTag}${styleAttr}>${node.text ?? ""}</${htmlTag}>`;
-  }
-
-  // Container
-  if (node.children.length === 0) {
-    return `${pad}<${htmlTag}${styleAttr} />`;
-  }
-
-  const childrenCode = node.children
-    .map((child) => {
-      if ("tag" in child) return renderNodeWithProps(child, indent + 1, vars);
-      return ""; // Shouldn't have nested repeats in template
-    })
-    .join("\n");
-
-  return `${pad}<${htmlTag}${styleAttr}>\n${childrenCode}\n${pad}</${htmlTag}>`;
-}
-
 function renderChild(
-  child: DslNode | RepeatBlock,
+  child: DslNode,
   indent: number,
   vars: Record<string, string>,
   componentNames: Set<string>
 ): string {
-  if ("kind" in child && child.kind === "repeat") {
-    // For repeat blocks, render the map() call inline
-    const pad = "  ".repeat(indent);
-    const componentName = child.template.as ?? "Item";
-    const dataArrayName = child.arrayName;
-    return `${pad}{${dataArrayName}.map((item, index) => (\n${pad}  <${componentName} key={index} {...item} />\n${pad}))}`;
-  }
-  return renderNode(child as DslNode, indent, vars, componentNames);
+  return renderNode(child, indent, vars, componentNames);
 }
 
 function renderStaticComponentDef(
@@ -349,89 +235,35 @@ function renderStaticComponentDef(
 }
 
 export function generateSemanticReact(
-  nodes: (DslNode | RepeatBlock)[],
+  nodes: DslNode[],
   vars: Record<string, string>
 ): string {
-  // Collect all component names first (repeat templates + .as() F nodes)
+  // Collect all component names (.as() F nodes)
   const componentNames = new Set<string>();
   const components: string[] = [];
 
-  // Pass 1: Collect all .as() F nodes and repeat templates
-  function collectComponentNames(items: (DslNode | RepeatBlock)[]) {
+  function collectComponentNames(items: DslNode[]) {
     for (const item of items) {
-      if ("kind" in item && item.kind === "repeat") {
-        const name = item.template.as ?? "Item";
-        componentNames.add(name);
-        // Don't recurse into repeat template for .as() collection
-      } else if ("tag" in item && item.tag === "F" && item.as) {
+      if (item.tag === "F" && item.as) {
         componentNames.add(item.as);
-        collectComponentNames(item.children);
-      } else if ("children" in item) {
-        collectComponentNames(item.children);
       }
+      collectComponentNames(item.children);
     }
   }
   collectComponentNames(nodes);
 
-  // Pass 2: Generate repeat template component definitions
-  function findRepeats(items: (DslNode | RepeatBlock)[]) {
-    const seen = new Set<string>();
+  // Generate .as() component definitions
+  function findStaticComponents(items: DslNode[]) {
     for (const item of items) {
-      if ("kind" in item && item.kind === "repeat") {
-        const name = item.template.as ?? "Item";
-        if (!seen.has(name)) {
-          seen.add(name);
-          components.push(renderComponentDef(item.template, vars));
-        }
-      }
-      if ("children" in item) {
-        findRepeats(item.children);
-      }
-    }
-  }
-  findRepeats(nodes);
-
-  // Pass 3: Generate static .as() component definitions
-  function findStaticComponents(items: (DslNode | RepeatBlock)[]) {
-    for (const item of items) {
-      if ("tag" in item && item.tag === "F" && item.as) {
-        // Skip if already defined as repeat template
+      if (item.tag === "F" && item.as) {
         if (!components.some((c) => c.startsWith(`function ${item.as}(`))) {
           components.push(renderStaticComponentDef(item, vars, componentNames));
         }
-        findStaticComponents(item.children);
-      } else if ("children" in item) {
-        findStaticComponents(item.children);
       }
+      findStaticComponents(item.children);
     }
   }
   findStaticComponents(nodes);
-
-  // Generate data arrays
-  const dataArrays: string[] = [];
-  function findDataArrays(items: (DslNode | RepeatBlock)[]) {
-    for (const item of items) {
-      if ("kind" in item && item.kind === "repeat") {
-        const entries = item.data.map((d) => {
-          const fields = Object.entries(d)
-            .map(([k, v]) => {
-              if (v.startsWith("$")) {
-                const resolved = vars[v];
-                return `${k}: ${resolved ?? `"${v}"`}`;
-              }
-              return `${k}: "${v}"`;
-            })
-            .join(", ");
-          return `  { ${fields} }`;
-        });
-        dataArrays.push(`const ${item.arrayName} = [\n${entries.join(",\n")}\n];`);
-      }
-      if ("children" in item) {
-        findDataArrays(item.children);
-      }
-    }
-  }
-  findDataArrays(nodes);
 
   // Generate main component
   const mainBody = nodes
@@ -440,17 +272,10 @@ export function generateSemanticReact(
 
   const parts: string[] = ['import React from "react";'];
 
-  // Component definitions
   if (components.length > 0) {
     parts.push(components.join("\n\n"));
   }
 
-  // Data arrays
-  if (dataArrays.length > 0) {
-    parts.push(dataArrays.join("\n\n"));
-  }
-
-  // Main component
   parts.push(`export default function App() {\n  return (\n${mainBody}\n  );\n}`);
 
   return parts.join("\n\n");

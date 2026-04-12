@@ -3,17 +3,11 @@ export interface DslNode {
   modifiers: string;
   as?: string;
   htmlTag?: string;
+  repeat?: number;
   text?: string;
-  children: (DslNode | RepeatBlock)[];
+  children: DslNode[];
 }
 
-export interface RepeatBlock {
-  kind: "repeat";
-  arrayName: string;
-  count: number;
-  template: DslNode;
-  data: Record<string, string>[];
-}
 
 interface ParsedLine {
   indent: number;
@@ -21,10 +15,10 @@ interface ParsedLine {
 }
 
 function extractAnnotation(line: string, name: string): { value: string | undefined; rest: string } {
-  const regex = new RegExp(`\\.${name}\\("([^"]*)"\\)`);
+  const regex = new RegExp(`\\.${name}\\((?:"([^"]*)"|(\\d+))\\)`);
   const match = line.match(regex);
   if (match) {
-    return { value: match[1], rest: line.replace(match[0], "") };
+    return { value: match[1] ?? match[2], rest: line.replace(match[0], "") };
   }
   return { value: undefined, rest: line };
 }
@@ -52,12 +46,14 @@ function parseSingleLine(raw: string): DslNode {
     line = line.slice(0, -1).trimEnd();
   }
 
-  // Extract .as() and .tag()
+  // Extract .as(), .tag(), and .repeat()
   const { value: as, rest: afterAs } = extractAnnotation(line, "as");
   const { value: htmlTag, rest: afterTag } = extractAnnotation(afterAs, "tag");
+  const { value: repeatStr, rest: afterRepeat } = extractAnnotation(afterTag, "repeat");
+  const repeat = repeatStr ? parseInt(repeatStr) : undefined;
 
   // Extract text content (for T nodes)
-  const { text, rest: afterText } = extractText(afterTag.trim());
+  const { text, rest: afterText } = extractText(afterRepeat.trim());
 
   // Extract tag (F, T, I)
   const tag = afterText.trim()[0] as "F" | "T" | "I";
@@ -70,91 +66,21 @@ function parseSingleLine(raw: string): DslNode {
     modifiers,
     as,
     htmlTag,
+    repeat,
     text,
     children: [],
   };
 }
 
-function parseDataSection(lines: ParsedLine[], startIdx: number): { data: Record<string, string>[]; endIdx: number } {
-  const data: Record<string, string>[] = [];
-  let i = startIdx;
-
-  while (i < lines.length) {
-    const line = lines[i].raw.trim();
-    if (line === "@end") {
-      return { data, endIdx: i };
-    }
-    // Parse { key: "value", key2: "value2", ... } or { key: $var, ... }
-    if (line.startsWith("{")) {
-      const entry: Record<string, string> = {};
-      const content = line.slice(1, -1).trim();
-      // Match key: "value" or key: $var patterns
-      const propRegex = /(\w+):\s*(?:"([^"]*)"|(\$\w+))/g;
-      let match;
-      while ((match = propRegex.exec(content)) !== null) {
-        entry[match[1]] = match[2] ?? match[3];
-      }
-      data.push(entry);
-    }
-    i++;
-  }
-
-  return { data, endIdx: i };
-}
-
-function buildTree(lines: ParsedLine[], startIdx: number, parentIndent: number): { nodes: (DslNode | RepeatBlock)[]; endIdx: number } {
-  const nodes: (DslNode | RepeatBlock)[] = [];
+function buildTree(lines: ParsedLine[], startIdx: number, parentIndent: number): { nodes: DslNode[]; endIdx: number } {
+  const nodes: DslNode[] = [];
   let i = startIdx;
 
   while (i < lines.length) {
     const { indent, raw } = lines[i];
-    const trimmed = raw.trim();
 
     // If we've gone back to parent level or above, stop
     if (indent <= parentIndent && i > startIdx) {
-      break;
-    }
-
-    // Handle @repeat
-    if (trimmed.startsWith("@repeat")) {
-      const match = trimmed.match(/@repeat\("([^"]*)",\s*(\d+)\)/);
-      if (match) {
-        const arrayName = match[1];
-        const count = parseInt(match[2]);
-
-        // Next line is the template
-        i++;
-        const templateNode = parseSingleLine(lines[i].raw);
-        const templateIndent = lines[i].indent;
-
-        // Parse template children
-        const { nodes: templateChildren, endIdx: childEnd } = buildTree(lines, i + 1, templateIndent);
-        templateNode.children = templateChildren;
-        i = childEnd;
-
-        // Find @data section
-        while (i < lines.length && lines[i].raw.trim() !== "@data") {
-          i++;
-        }
-        i++; // skip @data line
-
-        // Parse data entries
-        const { data, endIdx: dataEnd } = parseDataSection(lines, i);
-        i = dataEnd + 1; // skip @end
-
-        nodes.push({
-          kind: "repeat",
-          arrayName,
-          count,
-          template: templateNode,
-          data,
-        });
-        continue;
-      }
-    }
-
-    // Handle @data and @end (shouldn't reach here in normal flow)
-    if (trimmed === "@data" || trimmed === "@end") {
       break;
     }
 
@@ -163,7 +89,7 @@ function buildTree(lines: ParsedLine[], startIdx: number, parentIndent: number):
     const currentIndent = indent;
 
     // Parse children if has >
-    if (raw.trim().endsWith(">") || raw.trim().replace(/\.as\("[^"]*"\)/, "").replace(/\.tag\("[^"]*"\)/, "").trimEnd().endsWith(">")) {
+    if (raw.trim().endsWith(">") || raw.trim().replace(/\.as\("[^"]*"\)/, "").replace(/\.tag\("[^"]*"\)/, "").replace(/\.repeat\(\d+\)/, "").trimEnd().endsWith(">")) {
       const { nodes: children, endIdx: childEnd } = buildTree(lines, i + 1, currentIndent);
       node.children = children;
       i = childEnd;
@@ -192,7 +118,7 @@ export function sanitizeSemanticDsl(input: string): string {
     .join("\n");
 }
 
-export function parseDsl(input: string): (DslNode | RepeatBlock)[] {
+export function parseDsl(input: string): DslNode[] {
   const sanitized = sanitizeSemanticDsl(input);
   const rawLines = sanitized.split("\n").filter((l) => l.trim() !== "");
   const lines: ParsedLine[] = rawLines.map((raw) => ({
