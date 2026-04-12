@@ -27,6 +27,9 @@ const html = `<!DOCTYPE html>
   <link href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    button { background: none; border: none; cursor: pointer; font: inherit; color: inherit; }
+    input { background: none; border: none; outline: none; font: inherit; color: inherit; width: 100%; }
+    input::placeholder { color: inherit; }
   </style>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"><\/script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"><\/script>
