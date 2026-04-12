@@ -11,16 +11,18 @@ Figma REST API (JSON)
     ↓
 [Stage 1.5: プログラム] JSON → loom DSL（コンパクトなUI記法、98%トークン削減）
     ↓
-[Stage 2: LLM] DSL(本文のみ) → セマンティックDSL（意味づけのみ: .as, .tag, @repeat, @prop, @data）
+[Stage 2: LLM] DSL(本文のみ) → セマンティックDSL（意味づけのみ: .as, .tag）
     ↓
 [Stage 2.5: プログラム] セマンティックDSL + 変数定義 → コンポーネント化されたReactコード
+    ※ @repeat（繰り返しパターン検出）はプログラムで自動検出 ← 未実装
 ```
 
 ## 進捗
 - Stage 1: 完了（React コード生成）
-- Stage 1.5: 完了（DSL 生成 + 変数自動抽出）
+- Stage 1.5: 完了（DSL 生成 + 変数自動抽出 + パススルーノード平坦化）
 - Stage 2: 完了（LLM による意味づけ、プロンプト作成済み）
-- Stage 2.5: 完了（セマンティック DSL → React コンポーネント生成、プレビュー確認済み）
+  - LLM の仕事は .as() と .tag() のみ（@repeat は LLM の判断が不安定なためプログラムに移行）
+- Stage 2.5: 進行中（セマンティック DSL → React コンポーネント生成は動作するが、@repeat 自動検出が未実装）
 
 ## 技術スタック
 - TypeScript + Node.js 22
@@ -59,9 +61,9 @@ src/
 │   ├── layout.ts             # Auto Layout → flexbox CSS
 │   ├── visual.ts             # fills/strokes → CSS (TEXT は color, それ以外は background-color)
 │   ├── text.ts               # typography → CSS
-│   └── node.ts               # ノード → CSS 統合 (collectStyles, resolveTag)
+│   └── node.ts               # ノード → CSS 統合 (collectStyles, resolveTag, flattenPassthroughNodes)
 ├── parser/
-│   └── dsl-parser.ts         # セマンティック DSL パーサー
+│   └── dsl-parser.ts         # セマンティック DSL パーサー + void要素バリデーション
 ├── generator/
 │   ├── react-generator.ts    # ツリー → React コード (Stage 1)
 │   ├── dsl-generator.ts      # ツリー → DSL + 変数自動抽出 (Stage 1.5)
@@ -74,7 +76,7 @@ scripts/
 
 prompts/
 ├── dsl-to-html.md            # DSL → HTML 変換用 LLM プロンプト
-└── dsl-to-semantic.md        # DSL → セマンティック DSL 用 LLM プロンプト
+└── dsl-to-semantic.md        # DSL → セマンティック DSL 用 LLM プロンプト（.as と .tag のみ）
 
 dsl-spec.md                   # DSL 仕様書 (v0.3)
 image-cache.json              # Figma 画像 URL キャッシュ
@@ -85,12 +87,22 @@ image-cache.json              # Figma 画像 URL キャッシュ
 - 主軸/交差軸の判定: parentLayoutMode を子に渡して FILL → flex:1 or align-self:stretch を切り分け
 - VECTOR ノード: layoutMode なしのフレーム内の単一 VECTOR は img に平坦化、サイズは absoluteRenderBounds を使用
 - IMAGE fill ノード: fills に type:"IMAGE" を持つノードも画像として扱う
+- パススルーノード: 子が1つで視覚的スタイルを持たないフレームを除去し、レイアウトプロパティを子に移植
 - DSL の padding は 1:1 対応（.pt, .pr, .pb, .pl）にして LLM の変換精度を確保
-- 画像 URL は $img 変数に抽出してハルシネーション防止
+- 画像 URL は $img 変数にゼロパディング付き（$img01, $img02...）で抽出してハルシネーション防止
 - Stage 2 の LLM には変数定義を渡さず本文のみ（トークン削減 + ハルシネーション防止）
-- セマンティック DSL: LLM は意味づけ（.as, .tag, @repeat, @prop, @data）のみ担当
-- .as() が付いた全要素をコンポーネント化（粒度の判断は LLM のプロンプトで調整）
-- @repeat 内はテンプレート + @data でデータ分離し、プログラムで map() + props に変換
+- LLM の仕事は .as()（コンポーネント宣言）と .tag()（セマンティックHTML）のみに限定
+- @repeat（繰り返しパターン検出）はLLMの判断が不安定なため、プログラムで自動検出する方針に変更
+- .as() は「コンポーネント化」の意味のみ。ラベル用途との曖昧さを排除
+- .as() が付いた全 F ノードをコンポーネント化（粒度の判断は LLM に委ねる）
+- void 要素（input, img 等）が子を持つ場合は .tag() をバリデーションで除去
+
+## LLM 利用時の知見
+- Gemini Flash: 高速・安価だが、構造的な判断（@repeat の配置、void 要素の扱い）が不安定
+- Gemini Pro: 品質は高いが、仕様にない記法を発明する傾向がある
+- 変数名のゼロパディング ($img01 vs $img1) でハルシネーションを軽減できる
+- プロンプトに具体的な正誤例を含めると精度が向上する
+- LLM の仕事を絞るほど出力が安定する
 
 ## サンプルデータ
 - ~/Downloads/components.json — Figma REST API のレスポンス (FILE_KEY: WHwlnNVOUNMCdAto8Md7K1)
