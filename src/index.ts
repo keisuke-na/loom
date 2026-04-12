@@ -7,6 +7,7 @@ import { generateReact } from "./generator/react-generator.js";
 import { generateDsl } from "./generator/dsl-generator.js";
 import { parseDsl, parseVariableDefinitions } from "./parser/dsl-parser.js";
 import { generateSemanticReact } from "./generator/semantic-react-generator.js";
+import { flattenPassthroughNodes } from "./transformers/node.js";
 
 const args = process.argv.slice(2);
 const filePath = args.find((a) => !a.startsWith("--"));
@@ -47,7 +48,7 @@ if (format === "semantic-react") {
     process.exit(1);
   }
 
-  const document = json.nodes[nodeKey].document;
+  const document = flattenPassthroughNodes(json.nodes[nodeKey].document);
 
   async function main() {
     let imageMap: Record<string, string> = {};
