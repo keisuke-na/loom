@@ -12,7 +12,8 @@
 ## Size
 - `.stretch` = `align-self: stretch`
 - `.fill` = `flex: 1`
-- `.hug` = `width: fit-content`
+- `.hugW` = `width: fit-content`
+- `.hugH` = `height: fit-content`
 - `.w{N}` = `width: Npx`
 - `.h{N}` = `height: Npx`
 

@@ -16,8 +16,8 @@ const DSL_MAP: Record<string, (value: string) => string> = {
   "flex-direction": (v) => (v === "column" ? ".col" : ".row"),
   "flex": () => ".fill",
   "align-self": (v) => (v === "stretch" ? ".stretch" : ""),
-  "width": (v) => (v === "fit-content" ? ".hug" : `.w${round(v)}`),
-  "height": (v) => (v === "fit-content" ? "" : `.h${round(v)}`),
+  "width": (v) => (v === "fit-content" ? ".hugW" : `.w${round(v)}`),
+  "height": (v) => (v === "fit-content" ? ".hugH" : `.h${round(v)}`),
   "gap": (v) => `.gap${round(v)}`,
   "align-items": (v) => {
     if (v === "center") return ".center";

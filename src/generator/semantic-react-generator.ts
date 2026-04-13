@@ -13,7 +13,8 @@ function modifierToCSS(mod: string): CSSProperties {
   // Sizing
   if (mod === ".fill") { css["flex"] = "1"; return css; }
   if (mod === ".stretch") { css["align-self"] = "stretch"; return css; }
-  if (mod === ".hug") { css["width"] = "fit-content"; return css; }
+  if (mod === ".hugW") { css["width"] = "fit-content"; return css; }
+  if (mod === ".hugH") { css["height"] = "fit-content"; return css; }
   if (mod === ".bold") { css["font-weight"] = "700"; return css; }
   if (mod === ".medium") { css["font-weight"] = "500"; return css; }
   if (mod === ".cover") { css["object-fit"] = "cover"; return css; }
