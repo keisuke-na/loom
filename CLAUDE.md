@@ -11,18 +11,19 @@ Figma REST API (JSON)
     ↓
 [Stage 1.5: プログラム] JSON → loom DSL（コンパクトなUI記法、98%トークン削減）
     ↓
-[Stage 2: LLM] DSL(本文のみ) → セマンティックDSL（意味づけのみ: .as, .tag）
+[Stage 2: LLM] DSL(本文のみ) → セマンティックDSL（意味づけ: .as, .tag, .repeat）
     ↓
 [Stage 2.5: プログラム] セマンティックDSL + 変数定義 → コンポーネント化されたReactコード
-    ※ @repeat（繰り返しパターン検出）はプログラムで自動検出 ← 未実装
+    ※ .repeat 付きの兄弟ノードを diff → props 抽出 → data 配列 + map() 生成
 ```
 
 ## 進捗
 - Stage 1: 完了（React コード生成）
 - Stage 1.5: 完了（DSL 生成 + 変数自動抽出 + パススルーノード平坦化）
 - Stage 2: 完了（LLM による意味づけ、プロンプト作成済み）
-  - LLM の仕事は .as() と .tag() のみ（@repeat は LLM の判断が不安定なためプログラムに移行）
-- Stage 2.5: 進行中（セマンティック DSL → React コンポーネント生成は動作するが、@repeat 自動検出が未実装）
+  - LLM の仕事は .as(), .tag(), .repeat() の3つ
+- Stage 2.5: 完了（セマンティック DSL → React コンポーネント生成、repeat diff + props 抽出）
+- 次のステップ: MCP サーバー化（後述）
 
 ## 技術スタック
 - TypeScript + Node.js 22
@@ -76,7 +77,7 @@ scripts/
 
 prompts/
 ├── dsl-to-html.md            # DSL → HTML 変換用 LLM プロンプト
-└── dsl-to-semantic.md        # DSL → セマンティック DSL 用 LLM プロンプト（.as と .tag のみ）
+└── dsl-to-semantic.md        # DSL → セマンティック DSL 用 LLM プロンプト（.as, .tag, .repeat）
 
 dsl-spec.md                   # DSL 仕様書 (v0.3)
 image-cache.json              # Figma 画像 URL キャッシュ
@@ -91,11 +92,14 @@ image-cache.json              # Figma 画像 URL キャッシュ
 - DSL の padding は 1:1 対応（.pt, .pr, .pb, .pl）にして LLM の変換精度を確保
 - 画像 URL は $img 変数にゼロパディング付き（$img01, $img02...）で抽出してハルシネーション防止
 - Stage 2 の LLM には変数定義を渡さず本文のみ（トークン削減 + ハルシネーション防止）
-- LLM の仕事は .as()（コンポーネント宣言）と .tag()（セマンティックHTML）のみに限定
-- @repeat（繰り返しパターン検出）はLLMの判断が不安定なため、プログラムで自動検出する方針に変更
+- LLM の仕事は .as()（コンポーネント宣言）、.tag()（セマンティックHTML）、.repeat(N)（繰り返しマーク）の3つ
+- .repeat(N) は LLM がマーク、プログラムが兄弟 diff → props 抽出 → data 配列 + map() 生成（役割分離）
 - .as() は「コンポーネント化」の意味のみ。ラベル用途との曖昧さを排除
 - .as() が付いた全 F ノードをコンポーネント化（粒度の判断は LLM に委ねる）
-- void 要素（input, img 等）が子を持つ場合は .tag() をバリデーションで除去
+- .tag("input") は特別扱い: 子の T テキストを placeholder 属性に変換して `<input>` を生成
+- void 要素（img, br 等）が子を持つ場合は .tag() をバリデーションで除去（input は除く）
+- .hugW / .hugH で width/height: fit-content を表現（.hug を分離して情報欠落を防止）
+- パススルーノード平坦化: FIXED サイズのノードは平坦化しない（サイズ情報の欠落防止）
 
 ## LLM 利用時の知見
 - Gemini Flash: 高速・安価だが、構造的な判断（@repeat の配置、void 要素の扱い）が不安定
@@ -103,6 +107,32 @@ image-cache.json              # Figma 画像 URL キャッシュ
 - 変数名のゼロパディング ($img01 vs $img1) でハルシネーションを軽減できる
 - プロンプトに具体的な正誤例を含めると精度が向上する
 - LLM の仕事を絞るほど出力が安定する
+
+## トークン削減効果
+- Figma JSON: 73,528 トークン
+- LLM 入力（プロンプト + body DSL）: 2,533 トークン
+- 削減率: 96.6%（約 29分の1）
+
+## MCP サーバー化（次のステップ）
+パイプラインを MCP サーバーとして公開し、Claude Code 等の MCP クライアントから直接利用可能にする。
+
+### 動機
+- Figma MCP はデザイン JSON をそのまま LLM に渡すためトークン消費が膨大（73,528 トークン）
+- Loom は DSL 圧縮で 96.6% 削減（2,533 トークン）
+
+### 想定ツール
+- `generate-dsl`: Figma URL/JSON → DSL 本文を返す（Stage 1.5）
+- `generate-react`: セマンティック DSL + vars → React コードを返す（Stage 2.5）
+
+### フロー
+1. MCP クライアントが `generate-dsl` を呼ぶ → DSL 本文を受け取る
+2. MCP クライアント（LLM）自身が DSL にセマンティック付与（Stage 2）
+3. MCP クライアントが `generate-react` を呼ぶ → React コードを受け取る
+4. MCP クライアントが Tailwind 変換やファイル配置を行う
+
+### 技術
+- `@modelcontextprotocol/sdk` (TypeScript)
+- 既存の CLI 機能をツールとしてラップ
 
 ## サンプルデータ
 - ~/Downloads/components.json — Figma REST API のレスポンス (FILE_KEY: WHwlnNVOUNMCdAto8Md7K1)
