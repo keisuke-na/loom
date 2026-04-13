@@ -14,7 +14,7 @@ Your task is to add semantic annotations to the DSL. Do NOT change any styles or
 
 ### 2. Specify HTML tags with `.tag("tagname")`
 - Replace generic `<div>` / `<span>` with semantic HTML where appropriate
-- Common tags: `header`, `nav`, `main`, `section`, `article`, `footer`, `button`
+- Common tags: `header`, `nav`, `main`, `section`, `article`, `footer`, `button`, `input`
 - Only add `.tag()` when a semantic tag is clearly appropriate
 
 ### 3. Mark repeating patterns with `.repeat(N)`

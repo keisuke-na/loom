@@ -230,6 +230,19 @@ function renderNode(
   }
 
   const htmlTag = node.htmlTag ?? (node.tag === "T" ? "span" : node.tag === "I" ? "img" : "div");
+
+  // F node with .tag("input") — convert child T text to placeholder
+  if (node.tag === "F" && htmlTag === "input") {
+    const childT = node.children.find((c) => c.tag === "T");
+    if (childT) {
+      const { css: textCss } = resolveModifiers(childT.modifiers, vars);
+      Object.assign(css, textCss);
+    }
+    const styleAttr = formatStyle(css);
+    const placeholder = childT?.text ?? "";
+    return `${pad}<input${styleAttr} placeholder="${placeholder}" />`;
+  }
+
   const styleAttr = formatStyle(css);
 
   // Image node

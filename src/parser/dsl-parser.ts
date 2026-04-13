@@ -110,7 +110,7 @@ export function sanitizeSemanticDsl(input: string): string {
     .split("\n")
     .map((line) => {
       const tagMatch = line.match(/\.tag\("([^"]*)"\)/);
-      if (tagMatch && VOID_ELEMENTS.has(tagMatch[1]) && line.trimEnd().endsWith(">")) {
+      if (tagMatch && VOID_ELEMENTS.has(tagMatch[1]) && tagMatch[1] !== "input" && line.trimEnd().endsWith(">")) {
         return line.replace(tagMatch[0], "");
       }
       return line;
