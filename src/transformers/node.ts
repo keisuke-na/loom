@@ -22,6 +22,8 @@ export function isPassthroughNode(node: FigmaNode): boolean {
   if (node.paddingTop || node.paddingRight || node.paddingBottom || node.paddingLeft) return false;
   if (node.itemSpacing) return false;
   if (node.cornerRadius || node.rectangleCornerRadii) return false;
+  if (node.layoutSizingHorizontal === "FIXED") return false;
+  if (node.layoutSizingVertical === "FIXED") return false;
 
   const hasBg = node.fills?.some((f) => f.type === "SOLID" && f.color && f.color.a > 0);
   if (hasBg) return false;

@@ -41,7 +41,7 @@ Your task is to add semantic annotations to the DSL. Do NOT change any styles or
 
 ### Common Modifiers
 - `.col` / `.row` = flex direction
-- `.stretch`, `.fill`, `.hug` = sizing
+- `.stretch`, `.fill`, `.hugW`, `.hugH` = sizing
 - `.pt{N}`, `.pr{N}`, `.pb{N}`, `.pl{N}` = padding
 - `.gap{N}` = gap
 - `.center`, `.between` = alignment
