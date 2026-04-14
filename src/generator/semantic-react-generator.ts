@@ -414,16 +414,14 @@ function renderStaticComponentDef(
 let repeatComponents: string[] = [];
 let repeatDataArrays: string[] = [];
 
-export function generateSemanticReact(
+function buildComponents(
   nodes: DslNode[],
   vars: Record<string, string>
-): string {
+): { componentNames: Set<string>; mainBody: string; statics: { name: string; code: string }[]; repeats: { name: string; code: string; data: string }[] } {
   repeatComponents = [];
   repeatDataArrays = [];
 
-  // Collect all component names (.as() F nodes)
   const componentNames = new Set<string>();
-  const components: string[] = [];
 
   function collectComponentNames(items: DslNode[]) {
     for (const item of items) {
@@ -435,40 +433,71 @@ export function generateSemanticReact(
   }
   collectComponentNames(nodes);
 
-  // Generate main component body (this populates repeatComponents/repeatDataArrays)
   const mainBody = renderChildren(nodes, 2, vars, componentNames);
 
-  // Generate .as() component definitions (non-repeat)
+  const statics: { name: string; code: string }[] = [];
+  const seen = new Set<string>();
+
   function findStaticComponents(items: DslNode[]) {
     for (const item of items) {
-      if (item.tag === "F" && item.as && !repeatComponents.some((c) => c.startsWith(`function ${item.as}(`))) {
-        if (!components.some((c) => c.startsWith(`function ${item.as}(`))) {
-          components.push(renderStaticComponentDef(item, vars, componentNames));
-        }
+      if (item.tag === "F" && item.as && !seen.has(item.as) && !repeatComponents.some((c) => c.startsWith(`function ${item.as}(`))) {
+        seen.add(item.as);
+        statics.push({ name: item.as, code: renderStaticComponentDef(item, vars, componentNames) });
       }
       findStaticComponents(item.children);
     }
   }
   findStaticComponents(nodes);
 
+  const repeats: { name: string; code: string; data: string }[] = [];
+  for (let i = 0; i < repeatComponents.length; i++) {
+    const nameMatch = repeatComponents[i].match(/^function (\w+)\(/);
+    if (nameMatch) {
+      repeats.push({ name: nameMatch[1], code: repeatComponents[i], data: repeatDataArrays[i] });
+    }
+  }
+
+  return { componentNames, mainBody, statics, repeats };
+}
+
+export function generateSemanticReact(
+  nodes: DslNode[],
+  vars: Record<string, string>
+): string {
+  const { mainBody, statics, repeats } = buildComponents(nodes, vars);
+
   const parts: string[] = ['import React from "react";'];
 
-  // Repeat component definitions first
-  if (repeatComponents.length > 0) {
-    parts.push(repeatComponents.join("\n\n"));
+  if (repeats.length > 0) {
+    parts.push(repeats.map((r) => r.code).join("\n\n"));
   }
-
-  // Static component definitions
-  if (components.length > 0) {
-    parts.push(components.join("\n\n"));
+  if (statics.length > 0) {
+    parts.push(statics.map((s) => s.code).join("\n\n"));
   }
-
-  // Data arrays
-  if (repeatDataArrays.length > 0) {
-    parts.push(repeatDataArrays.join("\n\n"));
+  if (repeats.length > 0) {
+    parts.push(repeats.map((r) => r.data).join("\n\n"));
   }
 
   parts.push(`export default function App() {\n  return (\n${mainBody}\n  );\n}`);
 
   return parts.join("\n\n");
+}
+
+export function generateComponentMap(
+  nodes: DslNode[],
+  vars: Record<string, string>
+): Record<string, string> {
+  const { mainBody, statics, repeats } = buildComponents(nodes, vars);
+
+  const map: Record<string, string> = {};
+
+  for (const r of repeats) {
+    map[r.name] = `${r.code}\n\n${r.data}`;
+  }
+  for (const s of statics) {
+    map[s.name] = s.code;
+  }
+  map["App"] = `export default function App() {\n  return (\n${mainBody}\n  );\n}`;
+
+  return map;
 }
