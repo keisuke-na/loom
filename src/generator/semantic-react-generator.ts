@@ -433,10 +433,15 @@ function buildComponents(
   }
   collectComponentNames(nodes);
 
+  // Root node's .as is the App itself — don't treat it as a child component reference
+  const rootAs = nodes[0]?.as;
+  if (rootAs) componentNames.delete(rootAs);
+
   const mainBody = renderChildren(nodes, 2, vars, componentNames);
 
   const statics: { name: string; code: string }[] = [];
   const seen = new Set<string>();
+  if (rootAs) seen.add(rootAs);
 
   function findStaticComponents(items: DslNode[]) {
     for (const item of items) {
