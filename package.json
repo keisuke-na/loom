@@ -4,6 +4,7 @@
   "description": "Figma to React code converter",
   "type": "module",
   "main": "dist/index.js",
+  "files": ["dist", "prompts"],
   "bin": {
     "loom": "dist/index.js",
     "loom-mcp": "dist/mcp-server.js"
