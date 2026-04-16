@@ -33,12 +33,10 @@ const server = new McpServer(
   {
     instructions: [
       "## Workflow",
-      "1. generate-dsl: Convert Figma URL to DSL body",
-      "2. Annotate the DSL with .as, .tag, .repeat following the Semantic Annotation Rules below",
-      "3. generate-react: Pass annotated DSL to generate React components (cached server-side)",
-      "4. list-components / get-component: Retrieve individual components",
+      "1. generate-dsl → annotate → generate-react → report component names to user. STOP.",
+      "2. Do not call get-component or list-components unless the user explicitly asks.",
       "",
-      "## Semantic Annotation Rules",
+      "## Annotation Rules",
       semanticPrompt,
     ].join("\n"),
   },
@@ -85,13 +83,18 @@ server.tool(
     const nodes = parseDsl(semanticDsl);
     cachedComponents = generateComponentMap(nodes, cachedVars);
     const names = Object.keys(cachedComponents);
-    return { content: [{ type: "text", text: `Generated ${names.length} components: ${names.join(", ")}` }] };
+    return { 
+      content: [{ 
+        type: "text", 
+        text: `Generated ${names.length} components: ${names.join(", ")}. Components are cached server-side. Report this list to the user and stop — do not fetch individual components unless the user asks.` 
+      }] 
+    };
   }
 );
 
 server.tool(
   "list-components",
-  "List all cached component names from the previous generate-react call.",
+  "List all cached component names. Only call when the user asks what components are available, or when you need to verify cache state.",
   {},
   async () => {
     const names = Object.keys(cachedComponents);
@@ -104,7 +107,7 @@ server.tool(
 
 server.tool(
   "get-component",
-  "Get the code for a specific cached component. This code is pixel-perfect — use it as-is or transform it (e.g. to Tailwind CSS).",
+  "On-demand retrieval of a specific cached component's code. Only call this when the user explicitly asks to see or use a specific component. Not part of the default workflow after generate-react.",
   {
     name: z.string().describe("Component name (e.g. Header, PodcastCard, App)"),
   },
