@@ -96,8 +96,7 @@ image-cache.json              # Figma 画像 URL キャッシュ
 - .repeat(N) は LLM がマーク、プログラムが兄弟 diff → props 抽出 → data 配列 + map() 生成（役割分離）
 - .as() は「コンポーネント化」の意味のみ。ラベル用途との曖昧さを排除
 - .as() が付いた全 F ノードをコンポーネント化（粒度の判断は LLM に委ねる）
-- .tag("input") は特別扱い: 子の T テキストを placeholder 属性に変換して `<input>` を生成
-- void 要素（img, br 等）が子を持つ場合は .tag() をバリデーションで除去（input は除く）
+- void 要素（img, br 等）が子を持つ場合は .tag() をバリデーションで除去
 - .hugW / .hugH で width/height: fit-content を表現（.hug を分離して情報欠落を防止）
 - パススルーノード平坦化: FIXED サイズのノードは平坦化しない（サイズ情報の欠落防止）
 
