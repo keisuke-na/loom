@@ -1,10 +1,13 @@
 {
   "name": "@keisuke-na/loom-mcp",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Figma to React code converter via compact DSL — MCP server & CLI",
   "type": "module",
   "main": "dist/index.js",
-  "files": ["dist", "prompts"],
+  "files": [
+    "dist",
+    "prompts"
+  ],
   "bin": {
     "loom": "dist/index.js",
     "loom-mcp": "dist/mcp-server.js"
@@ -13,7 +16,13 @@
     "build": "tsc",
     "start": "node dist/index.js"
   },
-  "keywords": ["figma", "react", "mcp", "dsl", "code-generation"],
+  "keywords": [
+    "figma",
+    "react",
+    "mcp",
+    "dsl",
+    "code-generation"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
