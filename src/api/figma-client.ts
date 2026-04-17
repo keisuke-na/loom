@@ -1,9 +1,9 @@
 const FIGMA_API_BASE = "https://api.figma.com/v1";
 
 function getToken(): string {
-  const token = process.env.FIGMA_TOKEN;
+  const token = process.env.FIGMA_PERSONAL_ACCESS_TOKEN;
   if (!token) {
-    throw new Error("FIGMA_TOKEN environment variable is not set");
+    throw new Error("FIGMA_PERSONAL_ACCESS_TOKEN environment variable is not set");
   }
   return token;
 }
