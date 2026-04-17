@@ -8,10 +8,11 @@ Converts Figma design JSON into React components using a hybrid approach (progra
 
 ### Setup (Claude Code)
 
-Add the following to your MCP config:
+```bash
+claude mcp add loom --scope user -- npx @keisuke-na/loom-mcp
+```
 
-- **Per-project**: `.mcp.json` in your project root
-- **Global**: `~/.claude/settings.json` (applies to all projects)
+Or manually add to your MCP config (`.mcp.json` for per-project, `~/.claude/settings.json` for global):
 
 ```json
 {
