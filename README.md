@@ -8,7 +8,10 @@ Converts Figma design JSON into React components using a hybrid approach (progra
 
 ### Setup (Claude Code)
 
-Add to your MCP config:
+Add the following to your MCP config:
+
+- **Per-project**: `.mcp.json` in your project root
+- **Global**: `~/.claude/settings.json` (applies to all projects)
 
 ```json
 {
